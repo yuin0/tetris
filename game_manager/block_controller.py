@@ -315,13 +315,13 @@ class Block_Controller(object):  # object is not necessary (to use python2)
                 score = score - 9
             else:
                 score = score + offsetFL
-        score = score - nHoles * 10.0  # try not to make hole
-        score = score - onHolePenalty * 0.3
-        score = score - absDy * 1.0                 # try to put block smoothly
+        score = score - nHoles * 1.9  # try not to make hole
+        score = score - onHolePenalty * 4.0
+        score = score - absDy * 5.1  # try to put block smoothly
         if maxHeight > 12:
-            score = score - maxHeight * 5              # maxHeight
+            score = score - maxHeight * 2.1              # maxHeight
         score = score - maxDy * 1.0
-        score = score - wellPenalty * 5
+        score = score - wellPenalty * 2.7
         # score = score - stdY * 1.0                 # statistical data
         # score = score - stdDY * 0.01               # statistical data
 

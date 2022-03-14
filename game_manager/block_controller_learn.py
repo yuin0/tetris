@@ -6,6 +6,7 @@ from operator import mul  # To multiple lists
 import pprint  # To customize output
 import copy  # To copy objects
 
+
 class Block_Controller(object):  # object is not necessary (to use python2)
 
     # init parameter
@@ -23,7 +24,7 @@ class Block_Controller(object):  # object is not necessary (to use python2)
     #                 in detail see the internal GameStatus data. @game_manager
     # output
     #    nextMove : nextMove structure which includes next shape position.
-    def GetNextMove(self, nextMove, GameStatus, *RandomParameter=[1, 1, 1, 1]):
+    def GetNextMove(self, nextMove, GameStatus, RandomParam=[1,1,1,1,1]):
 
         t1 = datetime.now()
 
@@ -77,8 +78,7 @@ class Block_Controller(object):  # object is not necessary (to use python2)
                                                direction1, x1)
                         board1, fullLines = self.getBoardWithoutFL(board1)
                         # evaluate board
-                        EvalValue = self.calcEvaluationValue(board1, offsetFL,
-                                                             fullLines)
+                        EvalValue = self.calcEvaluationValue(board1, offsetFL, fullLines, RandomParam)
                         # update best move
                         if EvalValue > LatestEvalValue:
                             strategy = (direction0, x0, 1, 1)
@@ -174,8 +174,8 @@ class Block_Controller(object):  # object is not necessary (to use python2)
         return nextBoard, fullLines
 
     def calcWellDepth(self, blockMaxY):
-        leftDepth = [3] * len(blockMaxY)
-        rightDepth = [3] * len(blockMaxY)
+        leftDepth = [self.board_data_height] * len(blockMaxY)
+        rightDepth = [self.board_data_height] * len(blockMaxY)
         wellDepth = [0] * len(blockMaxY)
         for x in range(len(blockMaxY)):
             if(x > 0):
@@ -186,7 +186,7 @@ class Block_Controller(object):  # object is not necessary (to use python2)
 
         return wellDepth
 
-    def calcEvaluationValue(self, board, offsetFL, fullLines, *RandomParameter):
+    def calcEvaluationValue(self, board, offsetFL, fullLines, RandomParam):
         #
         # sample function of evaluate board.
         #
@@ -310,13 +310,13 @@ class Block_Controller(object):  # object is not necessary (to use python2)
                 score = score - 9
             else:
                 score = score + offsetFL
-        score = score - nHoles * 10.0  # try not to make hole
-        score = score - onHolePenalty * 0.3
-        score = score - absDy * 1.0                 # try to put block smoothly
+        score = score - nHoles * RandomParam[0]  # try not to make hole
+        score = score - onHolePenalty * RandomParam[1]
+        score = score - absDy * RandomParam[2]                 # try to put block smoothly
         if maxHeight > 12:
             score = score - maxHeight * 5              # maxHeight
-        score = score - maxDy * 1.0
-        score = score - wellPenalty * 5
+        score = score - maxDy * RandomParam[3]
+        score = score - wellPenalty * RandomParam[4]
         # score = score - stdY * 1.0                 # statistical data
         # score = score - stdDY * 0.01               # statistical data
 
@@ -325,4 +325,4 @@ class Block_Controller(object):  # object is not necessary (to use python2)
         return score
 
 
-BLOCK_CONTROLLER = Block_Controller()
+BLOCK_CONTROLLER_LEARN = Block_Controller()
