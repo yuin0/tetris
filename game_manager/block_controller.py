@@ -271,7 +271,7 @@ class Block_Controller(object):  # object is not necessary (to use python2)
             absDy += 3 * (abs(BlockMaxDy[0]) + abs(BlockMaxDy[-1]))
 
         # isolatedBlocksPenalty
-        onHolePenalty = sum(map(mul, isolatedBlocks, holeMaxY))
+        onHolePenalty = sum(map(lambda a, b: a + 2 * b, isolatedBlocks, holeMaxY))
 
         maxDy = max(BlockMaxY) - sorted(BlockMaxY)[2]
 
