@@ -271,7 +271,7 @@ class Block_Controller(object):  # object is not necessary (to use python2)
             absDy += 3 * (abs(BlockMaxDy[0]) + abs(BlockMaxDy[-1]))
 
         # isolatedBlocksPenalty
-        onHolePenalty = sum(map(mul, isolatedBlocks, holeMaxY))
+        onHolePenalty = sum(map(lambda a, b : a + 3.0 * b, isolatedBlocks, holeMaxY))
 
         maxDy = max(BlockMaxY) - sorted(BlockMaxY)[2]
 
@@ -319,8 +319,8 @@ class Block_Controller(object):  # object is not necessary (to use python2)
         score = score - onHolePenalty * 4.0
         score = score - absDy * 5.1  # try to put block smoothly
         if maxHeight > 12:
-            score = score - maxHeight * 2.1              # maxHeight
-        score = score - maxDy * 1.0
+            score = score - maxHeight * 5.0              # maxHeight
+        score = score - maxDy * 2.1
         score = score - wellPenalty * 2.7
         # score = score - stdY * 1.0                 # statistical data
         # score = score - stdDY * 0.01               # statistical data
