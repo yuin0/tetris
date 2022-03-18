@@ -300,6 +300,7 @@ class Block_Controller(object):  # object is not necessary (to use python2)
         #                      - (sum(BlockMaxDy) / len(BlockMaxDy)) ** 2)
 
         # calc Evaluation Value
+        # 
         score = 0
         if fullLines == 4:
             score = score + fullLines * 100
@@ -315,19 +316,18 @@ class Block_Controller(object):  # object is not necessary (to use python2)
                 score = score - 9
             else:
                 score = score + offsetFL
-        score = score - nHoles * 1.9  # try not to make hole
-        score = score - onHolePenalty * 4.0
-        score = score - absDy * 5.1  # try to put block smoothly
+        score = score - nHoles * 10  # try not to make hole
+        score = score - onHolePenalty * 10
+        score = score - absDy * 0  # try to put block smoothly
         if maxHeight > 12:
             score = score - maxHeight * 5.0              # maxHeight
-        score = score - maxDy * 2.1
-        score = score - wellPenalty * 2.7
+        score = score - maxDy * 3.8
+        score = score - wellPenalty * 2.9
         # score = score - stdY * 1.0                 # statistical data
         # score = score - stdDY * 0.01               # statistical data
 
         # print(score, fullLines, nHoles, nIsolatedBlocks,
         #       maxHeight, stdY, stdDY, absDy, BlockMaxY)
         return score
-
 
 BLOCK_CONTROLLER = Block_Controller()
