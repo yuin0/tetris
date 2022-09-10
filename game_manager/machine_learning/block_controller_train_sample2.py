@@ -64,7 +64,7 @@ class Block_Controller(object):
         shutil.copy2(yaml_file, self.output_dir)
         self.writer = SummaryWriter(self.output_dir+"/"+cfg["common"]["log_path"])
 
-        if self.mode=="predict" or self.mode=="predict_sample":
+        if self.mode=="predict" or self.mode=="predict_sample" or self.mode == "predict_sample2":
             self.log = self.output_dir+"/log_predict.txt"
             self.log_score = self.output_dir+"/score_predict.txt"
             self.log_reward = self.output_dir+"/reward_predict.txt"
@@ -87,7 +87,7 @@ class Block_Controller(object):
         self.width = cfg["tetris"]["board_width"]
         self.max_tetrominoes = cfg["tetris"]["max_tetrominoes"]
         
-        #=====load Deep Q Network=====
+        #=====load Network=====
         self.state_dim = cfg["state"]["dim"]
         print("model name: %s"%(cfg["model"]["name"]))
         if cfg["model"]["name"]=="MLP":
@@ -104,7 +104,8 @@ class Block_Controller(object):
             self.reward_func = self.step_v2
             self.reward_weight = cfg["train"]["reward_weight"]
 
-        if self.mode=="predict" or self.mode=="predict_sample":
+
+        if self.mode=="predict" or self.mode=="predict_sample" or self.mode == "predict_sample2":
             if not predict_weight=="None":
                 if os.path.exists(predict_weight):
                     print("Load {}...".format(predict_weight))
@@ -607,7 +608,7 @@ class Block_Controller(object):
             if self.tetrominoes > self.max_tetrominoes:
                 nextMove["option"]["force_reset_field"] = True
             self.state = next_state
-        elif self.mode == "predict" or self.mode == "predict_sample":
+        elif self.mode == "predict" or self.mode == "predict_sample" or self.mode == "predict_sample2":
             self.model.eval()
             next_actions, next_states = zip(*next_steps.items())
             next_states = torch.stack(next_states)
@@ -674,4 +675,4 @@ class Block_Controller(object):
         for _x, _y in coordArray:
             _board[(_y + dy) * self.board_data_width + _x] = Shape_class.shape
         return _board
-BLOCK_CONTROLLER_TRAIN = Block_Controller()
+BLOCK_CONTROLLER_TRAIN_SAMPLE2 = Block_Controller()
