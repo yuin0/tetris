@@ -336,6 +336,7 @@ class Game_Manager(QMainWindow):
                     nextMove["strategy"]["direction"] = d
                     nextMove["strategy"]["x"] = x
                     nextMove["strategy"]["y_operation"] = y
+                    nextMove["strategy"]["y_moveblocknum"] = 1
                     self.nextMove = nextMove
                 else:
                     self.nextMove = BLOCK_CONTROLLER.GetNextMove(nextMove, GameStatus)
@@ -369,6 +370,8 @@ class Game_Manager(QMainWindow):
                     if isExchangeHoldShape == False:
                         # if isExchangeHoldShape is False, this means no holdshape exists. 
                         # so it needs to return immediately to use new shape.
+                        # init nextMove
+                        self.nextMove = None
                         return
 
                 k = 0
@@ -695,6 +698,9 @@ class Game_Manager(QMainWindow):
                         },
                         "line_score_stat":"none",
                         "shape_info_stat":"none",
+                        "random_seed":"none",
+                        "obstacle_height":"none",
+                        "obstacle_probability":"none",
                       },
                   "judge_info":
                       {
@@ -732,6 +738,9 @@ class Game_Manager(QMainWindow):
         status["debug_info"]["shape_info"]["shapeS"]["color"] = "blue"
         status["debug_info"]["shape_info"]["shapeZ"]["index"] = Shape.shapeZ
         status["debug_info"]["shape_info"]["shapeZ"]["color"] = "yellow"
+        status["debug_info"]["random_seed"] = self.random_seed
+        status["debug_info"]["obstacle_height"] = self.obstacle_height
+        status["debug_info"]["obstacle_probability"] = self.obstacle_probability
         ## judge_info
         status["judge_info"]["elapsed_time"] = round(time.time() - self.tboard.start_time, 3)
         status["judge_info"]["game_time"] = self.game_time
