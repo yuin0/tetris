@@ -5,6 +5,7 @@ from datetime import datetime  # To pick up date
 from operator import mul  # To multiple lists
 import pprint  # To customize output
 import copy  # To copy objects
+import numpy as np
 
 from board_manager import Shape
 
@@ -191,7 +192,9 @@ class BlockController(object):  # object is not necessary (to use python2)
         return nextBoard, fullLines
 
     def calcWellPenalty(self, blockMaxHeights):
-        wellDepth = self.getWellDepth
+        wellDepth = self.getWellDepth(blockMaxHeights)
+        wellNum = 0
+        wellPenalty = 0
         for x in range(self.boardDataWidth):
             if wellDepth[x] > 2:
                 wellNum += 1
@@ -256,13 +259,15 @@ class BlockController(object):  # object is not necessary (to use python2)
         
         # Penalties
         hole_number = sum(holes)
-        onHolePenalty = sum(isolatedBlocks * maxHoleHeights)
-        bumpiness = sum( abs(maxBlockHeights[1:] - maxBlockHeights[:-2]) )
+        onHolePenalty = sum( map(mul, isolatedBlocks, maxHoleHeights) )
+        bumpiness = sum( np.abs( [a - b for a, b in zip(maxBlockHeights[1:], maxBlockHeights[:-2])] ) )
         maxHeight = max(maxBlockHeights)
+        maxHeightDifference = maxHeight - sorted(maxBlockHeights)[1]
         wellPenalty = self.calcWellPenalty(maxBlockHeights)
 
         # calc Evaluation Value
         score = 0
+
         if fullLines == 4:
             score = score + fullLines * 100
         elif fullLines > 0:
@@ -270,6 +275,7 @@ class BlockController(object):  # object is not necessary (to use python2)
                 score = score - 9
             else:
                 score = score + fullLines
+        
         if offsetFL == 4:
             score = score + offsetFL * 100
         elif fullLines < 4 and offsetFL > 0:
@@ -277,12 +283,15 @@ class BlockController(object):  # object is not necessary (to use python2)
                 score = score - 9
             else:
                 score = score + offsetFL
-        score = score - hole_number * 10
-        score = score - onHolePenalty * 10
-        score = score - bumpiness * 0.8
+        
         if maxHeight > 12:
             score = score - maxHeight * 5.0  # maxHeight
-        score = score - wellPenalty * 2.9
+
+        score -= hole_number * 10
+        score -= onHolePenalty * 10
+        score -= bumpiness * 0.8
+        score -= maxHeightDifference * 3.0
+        score -= wellPenalty * 5.0
 
         return score
 
