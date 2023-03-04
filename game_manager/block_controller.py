@@ -258,8 +258,10 @@ class BlockController(object):  # object is not necessary (to use python2)
         holes, isolatedBlocks, maxHoleHeights, maxBlockHeights = self.getBoardFeatures(board)
         
         # Penalties
-        hole_number = sum(holes)
-        onHolePenalty = sum( map(mul, isolatedBlocks, maxHoleHeights) )
+        holeNumber = sum(holes)
+        # onHolePenalty = sum( map(mul, isolatedBlocks, maxHoleHeights) )
+        maxHolePenalty = max(maxHoleHeights)
+        isolatedBlocksNumber = sum(isolatedBlocks)
         bumpiness = sum( np.abs( [a - b for a, b in zip(maxBlockHeights[1:], maxBlockHeights[:-2])] ) )
         maxHeight = max(maxBlockHeights)
         maxHeightDifference = maxHeight - sorted(maxBlockHeights)[1]
@@ -285,10 +287,12 @@ class BlockController(object):  # object is not necessary (to use python2)
                 score = score + offsetFL
         
         if maxHeight > 12:
-            score = score - maxHeight * 5.0  # maxHeight
+            score = score - maxHeight * 10  # maxHeight
 
-        score -= hole_number * 10
-        score -= onHolePenalty * 10
+        score -= holeNumber * 10
+        # score -= onHolePenalty * 5
+        score -= maxHolePenalty * 5
+        score -= isolatedBlocksNumber * 5
         score -= bumpiness * 0.8
         score -= maxHeightDifference * 3.0
         score -= wellPenalty * 5.0
