@@ -93,7 +93,90 @@ class BlockController(object):  # object is not necessary (to use python2)
                             useHold = 'n'
                             strategy = (blockDirection, blockPosition, 1, 1, useHold)
                             LatestEvalValue = EvalValue
-        
+                
+                if self.holdShapeClass != None:
+                    for holdBlockDirection in holdShapeRange:
+                        holdStartPoint, holdEndPoint = self.getSearchXRange(self.holdShapeClass, holdBlockDirection)
+                        for holdBlockPosition in range(holdStartPoint, holdEndPoint):
+                            ## get board Data as if dropdown hold block
+                            holdBlockCoodinate = Coordinate(holdBlockPosition, 0)
+                            holdBlockStatus = BlockStatus(self.holdShapeClass, holdBlockDirection, holdBlockCoodinate)
+                            holdTemporaryBoard, holdFullLines = self.getTemporaryBoardAndFullLines(temporaryBoard, holdBlockStatus)
+
+                            ## evaluate board
+                            EvalValue = self.calcEvaluationValue(holdTemporaryBoard, fullLines, holdFullLines)
+                            ## update best move
+                            if EvalValue > LatestEvalValue:
+                                useHold = 'n'
+                                strategy = (blockDirection, blockPosition, 1, 1, useHold)
+                                LatestEvalValue = EvalValue
+
+        if self.holdShapeClass != None:
+            for blockDirection in holdShapeRange:
+                startPoint, endPoint = self.getSearchXRange(self.holdShapeClass, blockDirection)
+                for blockPosition in range(startPoint, endPoint):
+                    ## get board data, as if dropdown block
+                    blockCoodinate = Coordinate(blockPosition, 0)
+                    blockStatus = BlockStatus(self.holdShapeClass, blockDirection, blockCoodinate)
+                    temporaryBoard, fullLines = self.getTemporaryBoardAndFullLines(self.boardBackboard, blockStatus)
+
+                    ## Search with next block
+                    for nextBlockDirection in nextShapeRange:
+                        nextStartPoint, nextEndPoint = self.getSearchXRange(self.nextShapeClass, nextBlockDirection)
+                        for nextBlockPosition in range(nextStartPoint, nextEndPoint):
+                            ## get board Data as if dropdown next block
+                            nextBlockCoodinate = Coordinate(nextBlockPosition, 0)
+                            nextBlockStatus = BlockStatus(self.nextShapeClass, nextBlockDirection, nextBlockCoodinate)
+                            nextTemporaryBoard, nextFullLines = self.getTemporaryBoardAndFullLines(temporaryBoard, nextBlockStatus)
+
+                            ## evaluate board
+                            EvalValue = self.calcEvaluationValue(nextTemporaryBoard, fullLines, nextFullLines)
+                            ## update best move
+                            if EvalValue > LatestEvalValue:
+                                useHold = 'y'
+                                strategy = (blockDirection, blockPosition, 1, 1, useHold)
+                                LatestEvalValue = EvalValue
+                    for currentBlockDirection in currentShapeRange:
+                        currentStartPoint, currentEndPoint = self.getSearchXRange(self.currentShapeClass, currentBlockDirection)
+                        for currentBlockPosition in range(currentStartPoint, currentEndPoint):
+                            ## get board Data as if dropdown current block
+                            currentBlockCoodinate = Coordinate(currentBlockPosition, 0)
+                            currentBlockStatus = BlockStatus(self.currentShapeClass, currentBlockDirection, currentBlockCoodinate)
+                            currentTemporaryBoard, currentFullLines = self.getTemporaryBoardAndFullLines(temporaryBoard, currentBlockStatus)
+
+                            ## evaluate board
+                            EvalValue = self.calcEvaluationValue(currentTemporaryBoard, fullLines, currentFullLines)
+                            ## update best move
+                            if EvalValue > LatestEvalValue:
+                                useHold = 'y'
+                                strategy = (blockDirection, blockPosition, 1, 1, useHold)
+                                LatestEvalValue = EvalValue
+        else:
+            for nextBlockDirection in nextShapeRange:
+                nextStartPoint, nextEndPoint = self.getSearchXRange(self.nextShapeClass, nextBlockDirection)
+                for nextBlockPosition in range(nextStartPoint, nextEndPoint):
+                    ## get board Data as if dropdown next block
+                    nextBlockCoodinate = Coordinate(nextBlockPosition, 0)
+                    nextBlockStatus = BlockStatus(self.nextShapeClass, nextBlockDirection, nextBlockCoodinate)
+                    nextTemporaryBoard, nextFullLines = self.getTemporaryBoardAndFullLines(temporaryBoard, nextBlockStatus)
+
+                    for currentBlockDirection in currentShapeRange:
+                        currentStartPoint, currentEndPoint = self.getSearchXRange(self.currentShapeClass, currentBlockDirection)
+                        for currentBlockPosition in range(currentStartPoint, currentEndPoint):
+                            ## get board Data as if dropdown current block
+                            currentBlockCoodinate = Coordinate(currentBlockPosition, 0)
+                            currentBlockStatus = BlockStatus(self.currentShapeClass, currentBlockDirection, currentBlockCoodinate)
+                            currentTemporaryBoard, currentFullLines = self.getTemporaryBoardAndFullLines(temporaryBoard, currentBlockStatus)
+
+                            ## evaluate board
+                            EvalValue = self.calcEvaluationValue(currentTemporaryBoard, fullLines, currentFullLines)
+                            ## update best move
+                            if EvalValue > LatestEvalValue:
+                                useHold = 'y'
+                                strategy = (blockDirection, blockPosition, 1, 1, useHold)
+                                LatestEvalValue = EvalValue                        
+
+
         nextMove["strategy"]["direction"] = strategy[0]
         nextMove["strategy"]["x"] = strategy[1]
         nextMove["strategy"]["y_operation"] = strategy[2]
