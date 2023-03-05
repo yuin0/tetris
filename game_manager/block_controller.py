@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime  # To pick up date
-from operator import mul  # To multiple lists
 import pprint  # To customize output
 import copy  # To copy objects
 import numpy as np
