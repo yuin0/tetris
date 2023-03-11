@@ -746,7 +746,7 @@ class Block_Controller(object):
         return lines,board_new
 
     ####################################
-    ## でこぼこ度, 高さ合計, 高さ最大, 高さ最小を求める
+    ## でこぼこ度, 高さ合計, 高さ最大, 高さ2番目最小を求める
     ####################################
     def get_bumpiness_and_height(self, reshape_board):
         # ボード上で 0 でないもの(テトリミノのあるところ)を抽出
@@ -764,8 +764,8 @@ class Block_Controller(object):
         total_height = np.sum(heights)
         # 最も高いところをとる (返り値用)
         max_height = np.max(heights)
-        # 最も低いところをとる (返り値用)
-        min_height = np.min(heights)
+        # ２番目に低いところをとる (返り値用)
+        second_min_height = sorted(heights)[1]
 
         # 右端列を削った 高さ配列
         #currs = heights[:-1]
@@ -783,12 +783,13 @@ class Block_Controller(object):
 
         # 差分の絶対値を合計してでこぼこ度とする
         total_bumpiness = np.sum(diffs)
-        return total_bumpiness, total_height, max_height, min_height, heights[0]
+        return total_bumpiness, total_height, max_height, second_min_height, heights[0]
 
     ####################################
     ## 穴の数, 穴の上積み上げ Penalty, 最も高い穴の位置を求める
     # reshape_board: 2次元画面ボード
     # min_height: 到達可能の最下層より1行下の穴の位置をチェック -1 で無効 hole_top_penalty 無効
+    # 穴の位置が高いほど積み上げ罰は大きくする
     ####################################
     def get_holes(self, reshape_board, min_height):
         # 穴の数
@@ -832,27 +833,13 @@ class Block_Controller(object):
         ## 最も高い穴を求める
         max_highest_hole = max(highest_holes)
 
-        ## 到達可能の最下層より1行下の穴の位置をチェック
-        if min_height > 0:
-            ## 最も高いところにある穴の数
-            highest_hole_num = 0
-            ## 列ごとに切り出し
-            for i in range(self.width):
-                ## 最も高い位置の穴の列の場合
-                if highest_holes[i] == max_highest_hole:
-                    highest_hole_num += 1
-                    ## 穴の絶対位置がhole_top_limit_heightより高く
-                    ## 穴の上の地面が高いなら Penalty
-                    if highest_holes[i] > self.hole_top_limit_height and \
-                           highest_grounds[i] >= highest_holes[i] + self.hole_top_limit:
-                        hole_top_penalty += highest_grounds[i] - (highest_holes[i])
-            ## 最も高い位置にある穴の数で割る
-            hole_top_penalty /= highest_hole_num
-            # debug
-            #print(['{:02}'.format(n) for n in highest_grounds])
-            #print(['{:02}'.format(n) for n in highest_holes])
-            #print(hole_top_penalty, hole_top_penalty*max_highest_hole)
-            #print("==")
+        ## 列ごとに切り出し
+        for i in range(self.width):
+            ## 穴の絶対位置がhole_top_limit_heightより高く穴の上の地面が高いなら Penalty
+            ## 高い位置の穴ほど重い罰(掘りの優先度を決める)
+            if highest_holes[i] > self.hole_top_limit_height and \
+                    highest_grounds[i] >= highest_holes[i] + self.hole_top_limit:
+                hole_top_penalty += ( highest_grounds[i] - (highest_holes[i]) ) * highest_holes[i]
 
         return num_holes, hole_top_penalty, max_highest_hole
     
@@ -939,10 +926,10 @@ class Block_Controller(object):
             return False
 
     ####################################
-    # 井戸の数 
-    # 2以上で数に応じてペナルティ対象
+    # 井戸のpenalty
+    # 2以上で数*深さに応じてペナルティ対象
     ####################################
-    def get_well_number(self, reshape_board):
+    def get_wells(self, reshape_board):
         # ボード上で 0 でないもの(テトリミノのあるところ)を抽出
         # (0,1,2,3,4,5,6,7) を ブロックあり True, なし False に変更
         mask = reshape_board != 0
@@ -957,18 +944,22 @@ class Block_Controller(object):
 
         # 井戸数を計算(隣接の相対高さが両方とも3以上の列)
         well_number = 0
-        for axis in range(len(heights)):
+        well_depth = [0] * self.width
+        for axis in range(self.width):
             if axis == 0:
-                if heights[axis + 1] - heights[axis] >= 3:
+                well_depth[axis] = heights[axis + 1] - heights[axis]
+                if well_depth[axis] >= 3:
                     well_number += 1
-            elif axis == len(heights) - 1:
-                if heights[axis - 1] - heights[axis] >= 3:
+            elif axis == self.width - 1:
+                well_depth[axis] = heights[axis - 1] - heights[axis]
+                if well_depth[axis] >= 3:
                     well_number += 1
             else:
-                if (heights[axis + 1] - heights[axis] >= 3) and (heights[axis - 1] - heights[axis] >= 3):
+                well_depth[axis] = min(heights[axis + 1] - heights[axis], heights[axis - 1] - heights[axis])
+                if well_depth[axis]:
                     well_number += 1
-        
-        return well_number
+
+        return well_number, well_depth
 
     ####################################
     #次の状態リストを取得(2次元用) DQN .... 画面ボードで テトリミノ回転状態 に落下させたときの次の状態一覧を作成
@@ -1362,30 +1353,37 @@ class Block_Controller(object):
         reshape_board = self.get_reshape_backboard(board)
         #### 報酬計算元の値取得
         ## でこぼこ度, 高さ合計, 高さ最大, 高さ最小を求める
-        bampiness, total_height, max_height, min_height, left_side_height = self.get_bumpiness_and_height(reshape_board)
+        bampiness, total_height, max_height, second_min_height, left_side_height = self.get_bumpiness_and_height(reshape_board)
         #max_height = self.get_max_height(reshape_board)
         ## 穴の数, 穴の上積み上げ Penalty, 最も高い穴の位置を求める
-        hole_num, hole_top_penalty, max_highest_hole = self.get_holes(reshape_board, min_height)
-        ## 井戸の数を求める
-        well_number = self.get_well_number(reshape_board)
+        hole_num, hole_top_penalty, max_highest_hole = self.get_holes(reshape_board, second_min_height)
+        ## 井戸の数，深さを求める
+        well_number, well_depth = self.get_wells(reshape_board)
         ## 左端あけた形状の報酬計算
         tetris_reward = self.get_tetris_fill_reward(reshape_board)
         ## 消せるセルの確認
         lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
         ## 報酬の計算
-        reward = self.reward_list[lines_cleared] * (1 + (self.height - max(0,max_height))/self.height_line_reward)
+        if self.height > self.max_height_relax:
+            reward = self.reward_list[lines_cleared]
+        elif lines_cleared == 4:
+            reward = self.reward_list[lines_cleared]
+        else:
+            reward = -1
+
         ## 継続報酬
         #reward += 0.01
         #### 形状の罰報酬
-        ## でこぼこ度罰
-        reward -= self.reward_weight[0] * bampiness 
+        ## でこぼこ度罰(周/面積 単位周が大きいほど罰)
+        reward -= self.reward_weight[0] * (bampiness + hole_num * 2) / (1 + reshape_board.sum())
+        reward -= self.reward_weight[0] * ( max_height - second_min_height )
         ## 最大高さ罰
         if max_height > self.max_height_relax:
             reward -= self.reward_weight[1] * max(0,max_height)
         ## 穴の数罰
         reward -= self.reward_weight[2] * hole_num
         ## 穴の上のブロック数罰
-        reward -= self.hole_top_limit_reward * hole_top_penalty * max_highest_hole
+        reward -= self.hole_top_limit_reward * hole_top_penalty
         ## 左端以外埋めている状態報酬
         reward += tetris_reward * self.tetris_fill_reward
         ## 左端が高すぎる場合の罰
@@ -1393,7 +1391,7 @@ class Block_Controller(object):
             reward -= (left_side_height - self.bumpiness_left_side_relax) * self.left_side_height_penalty
         ## 井戸の数の罰
         if well_number > 2:
-            reward -= well_number * self.reward_weight[3]
+            reward -= (sum(well_depth) - max(well_depth)) * self.reward_weight[3]
 
         self.epoch_reward += reward 
 
@@ -1417,21 +1415,28 @@ class Block_Controller(object):
         #ボードを２次元化
         reshape_board = self.get_reshape_backboard(board)
         # 報酬計算元の値取得
-        bampiness, height, max_height, min_height, _ = self.get_bumpiness_and_height(reshape_board)
+        bampiness, height, max_height, second_min_height, _ = self.get_bumpiness_and_height(reshape_board)
         #max_height = self.get_max_height(reshape_board)
-        hole_num, _ , _ = self.get_holes(reshape_board, min_height)
+        hole_num, _ , _ = self.get_holes(reshape_board, second_min_height)
         lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
-        well_number = self.get_well_number(reshape_board)
+        well_number, well_depth = self.get_wells(reshape_board)
         #### 報酬の計算
-        reward = self.reward_list[lines_cleared] 
+        if self.height > self.max_height_relax:
+            reward = self.reward_list[lines_cleared]
+        elif lines_cleared == 4:
+            reward = self.reward_list[lines_cleared]
+        else:
+            reward = -1
         # 継続報酬
         #reward += 0.01
         # 罰
-        reward -= self.reward_weight[0] *bampiness 
+        reward -= self.reward_weight[0] * (bampiness + hole_num * 2) / (1 + reshape_board.sum())
+        reward -= self.reward_weight[0] * ( max_height - second_min_height )
         if max_height > self.max_height_relax:
-            reward -= self.reward_weight[1] * max(0,max_height)
+            reward -= self.reward_weight[1] * max(0, max_height)
         reward -= self.reward_weight[2] * hole_num
-        reward -= self.reward_weight[3] * well_number
+        if well_number > 2:
+            reward -= (sum(well_depth) - max(well_depth)) * self.reward_weight[3]
         self.epoch_reward += reward
 
         # スコア計算
@@ -1737,6 +1742,7 @@ class Block_Controller(object):
             # 横方向
             nextMove["strategy"]["x"] = action[0]
             ###########
+            
             # Drop Down 落下の場合
             if action[2] == -1 and action[3] == -1 and action[4] == -1:
                 # Drop Down 落下
