@@ -1361,6 +1361,8 @@ class Block_Controller(object):
         ##ボードを２次元化
         reshape_board = self.get_reshape_backboard(board)
         #### 報酬計算元の値取得
+        # 消去後ボード
+        lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
         ## でこぼこ度, 高さ合計, 高さ最大, 高さ最小を求める
         bampiness, total_height, max_height, min_height, left_side_height = self.get_bumpiness_and_height(reshape_board)
         #max_height = self.get_max_height(reshape_board)
@@ -1370,10 +1372,8 @@ class Block_Controller(object):
         well_number = self.get_well_number(reshape_board)
         ## 左端あけた形状の報酬計算
         tetris_reward = self.get_tetris_fill_reward(reshape_board)
-        ## 消せるセルの確認
-        lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
         ## 報酬の計算
-        reward = self.reward_list[lines_cleared] * (1 + (self.height - max(0,max_height))/self.height_line_reward)
+        reward = self.reward_list[lines_cleared]  # * (1 + (self.height - max(0,max_height))/self.height_line_reward)
         ## 継続報酬
         #reward += 0.01
         #### 形状の罰報酬
@@ -1416,11 +1416,12 @@ class Block_Controller(object):
         board, drop_y = self.getBoard(curr_backboard, curr_shape_class, direction0, x0, -1)
         #ボードを２次元化
         reshape_board = self.get_reshape_backboard(board)
+        # 消去後ボード
+        lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
         # 報酬計算元の値取得
         bampiness, height, max_height, min_height, _ = self.get_bumpiness_and_height(reshape_board)
         #max_height = self.get_max_height(reshape_board)
         hole_num, _ , _ = self.get_holes(reshape_board, min_height)
-        lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
         well_number = self.get_well_number(reshape_board)
         #### 報酬の計算
         reward = self.reward_list[lines_cleared] 
