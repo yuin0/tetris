@@ -355,7 +355,7 @@ class BlockController(object):  # object is not necessary (to use python2)
         if fullLines == 4:
             score = score + fullLines * 100
         elif fullLines > 0:
-            if maxHeight < 9:
+            if maxHeight < 13:
                 score = score - 9
             else:
                 score = score + fullLines
@@ -363,13 +363,13 @@ class BlockController(object):  # object is not necessary (to use python2)
         if offsetFL == 4:
             score = score + offsetFL * 100
         elif fullLines < 4 and offsetFL > 0:
-            if maxHeight < 9:
+            if maxHeight < 13:
                 score = score - 9
             else:
                 score = score + offsetFL
         
         if maxHeight > 12:
-            score = score - maxHeight * 10  # maxHeight
+            score -= maxHeight * 10  # maxHeight
 
         score -= holeNumber * 10
         # score -= onHolePenalty * 5
