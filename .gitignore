@@ -6,5 +6,5 @@ tmp.log
 /result.json
 outputs/*
 .venv/
-Pipfile*
 .vscode/
+Pipfile*

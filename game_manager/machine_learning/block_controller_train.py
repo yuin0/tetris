@@ -936,6 +936,38 @@ class Block_Controller(object):
             return False
 
     ####################################
+    # 井戸の数 
+    # 2以上で数に応じてペナルティ対象
+    ####################################
+    def get_well_number(self, reshape_board):
+        # ボード上で 0 でないもの(テトリミノのあるところ)を抽出
+        # (0,1,2,3,4,5,6,7) を ブロックあり True, なし False に変更
+        mask = reshape_board != 0
+        #pprint.pprint(mask, width = 61, compact = True)
+
+        # 列方向 何かブロックががあれば、そのindexを返す
+        # なければ画面ボード縦サイズを返す
+        # 上記を 画面ボードの列に対して実施したの配列(長さ width)を返す
+        invert_heights = np.where(mask.any(axis=0), np.argmax(mask, axis=0), self.height)
+        # 上からの距離なので反転 (配列)
+        heights = self.height - invert_heights
+
+        # 井戸数を計算(隣接の相対高さが両方とも3以上の列)
+        well_number = 0
+        for axis in range(len(heights)):
+            if axis == 0:
+                if heights[axis + 1] - heights[axis] >= 3:
+                    well_number += 1
+            elif axis == len(heights) - 1:
+                if heights[axis - 1] - heights[axis] >= 3:
+                    well_number += 1
+            else:
+                if (heights[axis + 1] - heights[axis] >= 3) and (heights[axis - 1] - heights[axis] >= 3):
+                    well_number += 1
+        
+        return well_number
+
+    ####################################
     #次の状態リストを取得(2次元用) DQN .... 画面ボードで テトリミノ回転状態 に落下させたときの次の状態一覧を作成
     #  get_next_func でよびだされる
     # curr_backboard 現画面
@@ -1326,17 +1358,19 @@ class Block_Controller(object):
         ##ボードを２次元化
         reshape_board = self.get_reshape_backboard(board)
         #### 報酬計算元の値取得
+        # 消去後ボード
+        lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
         ## でこぼこ度, 高さ合計, 高さ最大, 高さ最小を求める
         bampiness, total_height, max_height, min_height, left_side_height, over3_diff_count = self.get_bumpiness_and_height(reshape_board)
         #max_height = self.get_max_height(reshape_board)
         ## 穴の数, 穴の上積み上げ Penalty, 最も高い穴の位置を求める
         hole_num, hole_top_penalty, max_highest_hole = self.get_holes(reshape_board, min_height)
+        ## 井戸の数を求める
+        well_number = self.get_well_number(reshape_board)
         ## 左端あけた形状の報酬計算
         tetris_reward = self.get_tetris_fill_reward(reshape_board)
-        ## 消せるセルの確認
-        lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
         ## 報酬の計算
-        reward = self.reward_list[lines_cleared] * (1 + (self.height - max(0,max_height))/self.height_line_reward)
+        reward = self.reward_list[lines_cleared]  # * (1 + (self.height - max(0,max_height))/self.height_line_reward)
         ## 継続報酬
         #reward += 0.01
         #### 形状の罰報酬
@@ -1354,9 +1388,9 @@ class Block_Controller(object):
         ## 左端が高すぎる場合の罰
         if left_side_height > self.bumpiness_left_side_relax:
             reward -= (left_side_height - self.bumpiness_left_side_relax) * self.left_side_height_penalty
-        # 3以上の段差を作った場合の罰
-        reward -= over3_diff_count * self.over3_diff_penalty
-        print(over3_diff_count * self.over3_diff_penalty)
+        ## 井戸の数の罰
+        if well_number > 2:
+            reward -= well_number * self.reward_weight[3]
 
         self.epoch_reward += reward 
 
@@ -1379,11 +1413,13 @@ class Block_Controller(object):
         board, drop_y = self.getBoard(curr_backboard, curr_shape_class, direction0, x0, -1)
         #ボードを２次元化
         reshape_board = self.get_reshape_backboard(board)
+        # 消去後ボード
+        lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
         # 報酬計算元の値取得
         bampiness, height, max_height, min_height, _, _ = self.get_bumpiness_and_height(reshape_board)
         #max_height = self.get_max_height(reshape_board)
         hole_num, _ , _ = self.get_holes(reshape_board, min_height)
-        lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
+        well_number = self.get_well_number(reshape_board)
         #### 報酬の計算
         reward = self.reward_list[lines_cleared] 
         # 継続報酬
@@ -1393,6 +1429,7 @@ class Block_Controller(object):
         if max_height > self.max_height_relax:
             reward -= self.reward_weight[1] * max(0,max_height)
         reward -= self.reward_weight[2] * hole_num
+        reward -= self.reward_weight[3] * well_number
         self.epoch_reward += reward
 
         # スコア計算
