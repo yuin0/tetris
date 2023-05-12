@@ -297,6 +297,11 @@ class Block_Controller(object):
                 self.left_side_height_penalty = 0
             print("left_side_height_penalty:", self.left_side_height_penalty)
 
+            if 'over3_diff_penalty' in cfg["train"]:
+                self.over3_diff_penalty = cfg["train"]["over3_diff_penalty"]
+            else:
+                self.over3_diff_penalty = 0
+            print("over3_diff_penalty:", self.over3_diff_penalty)
 
         # 共通報酬関連規定
         if 'bumpiness_left_side_relax' in cfg["train"]:
@@ -316,31 +321,19 @@ class Block_Controller(object):
         ####################
         # 推論の場合 推論ウェイトを torch　で読み込み model に入れる。
         if self.mode=="predict" or self.mode=="predict_sample":
-            if not predict_weight=="None":
-                if os.path.exists(predict_weight):
-                    print("Load {}...".format(predict_weight))
-                    # 推論インスタンス作成
-                    self.model = torch.load(predict_weight)
-                    # インスタンスを推論モードに切り替え
-                    self.model.eval()    
-                else:
-                    print("{} is not existed!!".format(predict_weight))
-                    exit()
-            else:
-                print("Please set predict_weight!!")
-                exit()
+            print("Load {}...".format(predict_weight))
+            # 推論インスタンス作成
+            self.model = torch.load(predict_weight)
+            # インスタンスを推論モードに切り替え
+            self.model.eval()
 
             ## 第2 model
             if self.weight2_available and (not predict_weight2=="None"):
-                if os.path.exists(predict_weight2):
-                    print("Load2 {}...".format(predict_weight2))
-                    # 推論インスタンス作成
-                    self.model2 = torch.load(predict_weight2)
-                    # インスタンスを推論モードに切り替え
-                    self.model2.eval()    
-                else:
-                    print("{} is not existed!!(predict 2)".format(predict_weight))
-                    exit()
+                print("Load2 {}...".format(predict_weight2))
+                # 推論インスタンス作成
+                self.model2 = torch.load(predict_weight2)
+                # インスタンスを推論モードに切り替え
+                self.model2.eval()
 
         ####################
         #### finetune の場合
@@ -783,7 +776,11 @@ class Block_Controller(object):
 
         # 差分の絶対値を合計してでこぼこ度とする
         total_bumpiness = np.sum(diffs)
-        return total_bumpiness, total_height, max_height, min_height, heights[0]
+
+        # 3以上の段差の数を数える
+        over3_diff_count = np.count_nonzero(diffs > 2)
+
+        return total_bumpiness, total_height, max_height, min_height, heights[0], over3_diff_count
 
     ####################################
     ## 穴の数, 穴の上積み上げ Penalty, 最も高い穴の位置を求める
@@ -865,7 +862,7 @@ class Block_Controller(object):
         # 穴の数
         holes, _ , _ = self.get_holes(reshape_board, -1)
         # でこぼこの数
-        bumpiness, height, max_height, min_height, _ = self.get_bumpiness_and_height(reshape_board)
+        bumpiness, height, max_height, min_height, _, _ = self.get_bumpiness_and_height(reshape_board)
 
         return torch.FloatTensor([lines_cleared, holes, bumpiness, height])
 
@@ -878,7 +875,7 @@ class Block_Controller(object):
         # 穴の数
         holes, _ , _ = self.get_holes(reshape_board, -1)
         # でこぼこの数
-        bumpiness, height, max_row, min_height,_ = self.get_bumpiness_and_height(reshape_board)
+        bumpiness, height, max_row, min_height, _, _ = self.get_bumpiness_and_height(reshape_board)
         # 最大高さ
         #max_row = self.get_max_height(reshape_board)
         return torch.FloatTensor([lines_cleared, holes, bumpiness, height, max_row])
@@ -919,9 +916,9 @@ class Block_Controller(object):
             # そろっている段ごとに報酬
             if self.get_line_right_fill(reshape_board, sum_, i):
                 reward +=1
-            ## 1段目は2倍
-            if i==1:
-                reward +=5
+                ## 1段目は2倍
+                if i==1:
+                    reward +=2
 
         return reward
 
@@ -1330,7 +1327,7 @@ class Block_Controller(object):
         reshape_board = self.get_reshape_backboard(board)
         #### 報酬計算元の値取得
         ## でこぼこ度, 高さ合計, 高さ最大, 高さ最小を求める
-        bampiness, total_height, max_height, min_height, left_side_height = self.get_bumpiness_and_height(reshape_board)
+        bampiness, total_height, max_height, min_height, left_side_height, over3_diff_count = self.get_bumpiness_and_height(reshape_board)
         #max_height = self.get_max_height(reshape_board)
         ## 穴の数, 穴の上積み上げ Penalty, 最も高い穴の位置を求める
         hole_num, hole_top_penalty, max_highest_hole = self.get_holes(reshape_board, min_height)
@@ -1357,6 +1354,9 @@ class Block_Controller(object):
         ## 左端が高すぎる場合の罰
         if left_side_height > self.bumpiness_left_side_relax:
             reward -= (left_side_height - self.bumpiness_left_side_relax) * self.left_side_height_penalty
+        # 3以上の段差を作った場合の罰
+        reward -= over3_diff_count * self.over3_diff_penalty
+        print(over3_diff_count * self.over3_diff_penalty)
 
         self.epoch_reward += reward 
 
@@ -1380,7 +1380,7 @@ class Block_Controller(object):
         #ボードを２次元化
         reshape_board = self.get_reshape_backboard(board)
         # 報酬計算元の値取得
-        bampiness, height, max_height, min_height, _ = self.get_bumpiness_and_height(reshape_board)
+        bampiness, height, max_height, min_height, _, _ = self.get_bumpiness_and_height(reshape_board)
         #max_height = self.get_max_height(reshape_board)
         hole_num, _ , _ = self.get_holes(reshape_board, min_height)
         lines_cleared, reshape_board = self.check_cleared_rows(reshape_board)
